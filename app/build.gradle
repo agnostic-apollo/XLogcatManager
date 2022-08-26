@@ -24,8 +24,8 @@ android {
         applicationId "dev.agnosticapollo.xlogcatmanager"
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 0
-        versionName "0.0.0"
+        versionCode 1
+        versionName "0.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         if (appVersionName) versionName = appVersionName
