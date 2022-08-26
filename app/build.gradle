@@ -1,0 +1,122 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+
+    def appApkLabel = "XLogcatManager"
+    def appVersionName = System.getenv("XLOGCATMANAGER_APP_VERSION_NAME") ?: ""
+    def apkVersionTag = System.getenv("XLOGCATMANAGER_APK_VERSION_TAG") ?: ""
+
+    // Load keystore.properties file that contains info of the signing key for release build apks
+    // The keystore.properties file should exist in the root directory of the project (not app directory)
+    // It must have the following 4 values in the format:
+    // storeFile=<path to store keystore.jks>
+    // storePassword=<store password>
+    // keyAlias=<key alias>
+    // keyPassword=<key password>
+    def keystorePropertiesFile = rootProject.file("keystore.properties")
+    def keystoreProperties = new Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }
+
+    defaultConfig {
+        applicationId "dev.agnosticapollo.xlogcatmanager"
+        minSdkVersion project.properties.minSdkVersion.toInteger()
+        targetSdkVersion project.properties.targetSdkVersion.toInteger()
+        versionCode 0
+        versionName "0.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        if (appVersionName) versionName = appVersionName
+        validateVersionName(versionName)
+
+        manifestPlaceholders.APP_PACKAGE_NAME = applicationId
+    }
+
+    signingConfigs {
+        release {
+            if (!keystoreProperties.isEmpty()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+
+        debug {
+            storeFile file('dev_keystore.jks')
+            storePassword 'android'
+            keyAlias 'debug'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources false // Reproducible builds
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+
+        debug {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        // Remove terminal-emulator and termux-shared JNI libs added via termux-shared dependency
+        exclude 'lib/*/libtermux.so'
+        exclude 'lib/*/liblocal-socket.so'
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            if (variant.buildType.name == "debug") {
+                outputFileName = new File(appApkLabel + "_" + (apkVersionTag ? apkVersionTag : "debug") + ".apk")
+            } else if (variant.buildType.name == "release") {
+                outputFileName = new File(appApkLabel + "_" + (apkVersionTag ? apkVersionTag : "release") + ".apk")
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+
+    implementation 'com.google.android.material:material:1.6.1'
+    implementation 'androidx.appcompat:appcompat:1.5.0'
+    compileOnly 'de.robv.android.xposed:api:82'
+    //compileOnly 'de.robv.android.xposed:api:82:sources'
+
+    implementation 'com.github.termux.termux-app:termux-shared:211340781b'
+    // Use if below libraries are published locally by termux-app with `./gradlew publishReleasePublicationToMavenLocal` and used with `mavenLocal()`.
+    // If updates are done, republish there and sync project with gradle files here
+    // https://github.com/termux/termux-app/wiki/Termux-Libraries
+    // implementation 'com.termux:termux-shared:0.118.0'
+
+    implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
+}
+
+task versionName {
+    doLast {
+        print android.defaultConfig.versionName
+    }
+}
+
+static def validateVersionName(String versionName) {
+    // https://semver.org/spec/v2.0.0.html#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    // ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+    if (!java.util.regex.Pattern.matches("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?\$", versionName))
+        throw new IllegalArgumentException("The versionName '" + versionName + "' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html.")
+}

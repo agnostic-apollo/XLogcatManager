@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!DOCTYPE resources [
+    <!ENTITY APP_NAME "XLogcatManager">
+    ]>
+
+<resources>
+    <string name="app_name">&APP_NAME;</string>
+
+    <string name="app_info">&APP_NAME; is an app to improve LogcatManager added in Android 13 using Xposed hooks.
+        \n\nCheck app github %1$s for more info.
+        \n\nReport issues on github at %2$s or email at %3$s. Github is preferred.
+        \n\nReboot device for changes to take effect after installing/updating app and enabling xposed module.
+    </string>
+
+    <string name="action_info">Info</string>
+</resources>

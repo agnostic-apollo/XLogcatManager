@@ -1,0 +1,62 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="dev.agnosticapollo.xlogcatmanager">
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+
+    <application
+        android:name="dev.agnosticapollo.xlogcatmanager.XposedApplication"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules">
+
+        <activity android:name="dev.agnosticapollo.xlogcatmanager.activities.MainActivity"
+            android:theme="@style/Theme.BaseActivity.DayNight.NoActionBar"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- If you see "Unresolved package" errors for ReportActivity with manifest placeholder,
+        ignore it. Android Studio linter is broken and correct package name will be used at build time." -->
+        <activity
+            android:name="com.termux.shared.activities.ReportActivity"
+            android:theme="@style/Theme.MarkdownViewActivity.DayNight"
+            android:documentLaunchMode="intoExisting"
+            tools:ignore="MissingClass" />
+
+
+
+        <receiver
+            android:name="com.termux.shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
+            android:exported="false"
+            tools:ignore="MissingClass" />
+
+
+
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Xposed Module to improve LogcatManager added in Android 13 using Xposed hooks" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="90" />
+        <meta-data
+            android:name="xposedsharedprefs"
+            android:value="true" />
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_module_scope" />
+    </application>
+</manifest>
