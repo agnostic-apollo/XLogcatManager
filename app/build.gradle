@@ -1,6 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
+    namespace "dev.agnosticapollo.xlogcatmanager"
+
     compileSdkVersion project.properties.compileSdkVersion.toInteger()
 
     def appApkLabel = "XLogcatManager"
