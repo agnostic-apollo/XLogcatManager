@@ -67,7 +67,7 @@ The APKs are [`debuggable`](https://developer.android.com/studio/debug).
 
 - Reboot device. Rebooting will be required whenever module is installed/updated for changes to take effect.
 
-- If module does not work or to debug issues, check [`logcat`](https://developer.android.com/studio/command-line/logcat). Take `logcat` dump by running `adb logcat -d > logcat.txt` from a PC over `ADB` or `su -c 'logcat -d > /sdcard/logcat.txt'` in an app granted `root` access, like [`Termux`](https://github.com/termux/termux-app). Hooking is done during boot time, so run `logcat` right after boot completes to get related log entries.
+- If module does not work or to debug issues, check [`logcat`](https://developer.android.com/studio/command-line/logcat). Take `logcat` dump by running `adb logcat -d > logcat.txt` from a PC over `ADB` or `su -c 'logcat -d > /sdcard/logcat.txt'` in an app granted `root` access, like [`Termux`](https://github.com/termux/termux-app). Hooking is done during boot time, so run `logcat` right after boot completes to get related log entries. The `XLogcatM` is used as log tag (prefix).
 ##
 
 
