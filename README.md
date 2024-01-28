@@ -63,7 +63,7 @@ The APKs are [`debuggable`](https://developer.android.com/studio/debug).
 
 - Install [`LSPosed`](https://github.com/LSPosed/LSPosed#install). [`EdXposed`](https://github.com/ElderDrivers/EdXposed#install) is untested. `EdXposed` and other implementations will not work if they don't have `XposedBridge.deoptimizeMethod()` method implemented, check [`LSPosed/LSPosed#1123`](https://github.com/LSPosed/LSPosed/issues/1123) and [`XposedModule.deoptimizeMethod()`](https://github.com/agnostic-apollo/XLogcatManager/blob/v0.1.0/app/src/main/java/dev/agnosticapollo/xlogcatmanager/xposed/XposedModule.java#L71) for details.
 
-- [Install `XLogcatManager`](#installation) apk and enable it in `LSPosed` modules list. Only Android `System Framework` needs to enabled for module scope. For running on Android `avd`, check [`XposedModule` class javadocs](https://github.com/agnostic-apollo/XLogcatManager/blob/v0.1.0/app/src/main/java/dev/agnosticapollo/xlogcatmanager/xposed/XposedModule.java#L30).
+- [Install `XLogcatManager`](#installation) apk and enable it in `LSPosed` modules list. Only Android `System Framework` (`android`) and `System UI` (`com.android.systemui`) needs to enabled for module scope. For running on Android `avd`, check [`XposedModule` class javadocs](https://github.com/agnostic-apollo/XLogcatManager/blob/v0.1.0/app/src/main/java/dev/agnosticapollo/xlogcatmanager/xposed/XposedModule.java#L30).
 
 - Reboot device. Rebooting will be required whenever module is installed/updated for changes to take effect.
 

@@ -46,7 +46,7 @@ public class XposedModule implements IXposedHookLoadPackage {
     private static Method mDeoptimizeMethod;
 
     public static List<String> packagesToHook = Arrays.asList(
-            "android"
+            "android", "com.android.systemui"
     );
 
     @Override
@@ -66,6 +66,10 @@ public class XposedModule implements IXposedHookLoadPackage {
            XLogcatManagerService.handleLoadPackage(lpparam);
            XLogAccessDialogActivity.handleLoadPackage(lpparam);
        }
+
+        if (lpparam.packageName.equals("com.android.systemui")) {
+            XLogAccessDialogActivity.handleLoadPackage(lpparam);
+        }
     }
 
     /**

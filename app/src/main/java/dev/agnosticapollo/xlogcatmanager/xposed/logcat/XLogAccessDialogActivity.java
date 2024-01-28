@@ -20,12 +20,17 @@ public class XLogAccessDialogActivity {
 
     private static boolean mInvalidState = false;
 
-    private static final String LOGCAT_SERVER_PACKAGE_NAME = "com.android.server.logcat";
-    private static final String LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME = LOGCAT_SERVER_PACKAGE_NAME + ".LogAccessDialogActivity";
+    private static final String LOGCAT_SYSTEM_SERVER_PACKAGE_NAME = "com.android.server.logcat";
+    private static final String SYSTEM_SERVER_LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME = LOGCAT_SYSTEM_SERVER_PACKAGE_NAME + ".LogAccessDialogActivity";
+
+    private static final String LOGCAT_SYSTEM_UI_PACKAGE_NAME = "com.android.systemui.logcat";
+    private static final String SYSTEM_UI_LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME = LOGCAT_SYSTEM_UI_PACKAGE_NAME + ".LogAccessDialogActivity";
+
+    private static Class<?> mLogAccessDialogActivityClass;
 
     private static Handler mHandler;
 
-    private static int MSG_DISMISS_DIALOG; // LogAccessDialogActivity.MSG_DISMISS_DIALOG
+    private static final int MSG_DISMISS_DIALOG = 0; // LogAccessDialogActivity.MSG_DISMISS_DIALOG
 
     public static void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         Logger.logInfo(LOG_TAG, "handleLoadPackage()");
@@ -36,20 +41,38 @@ public class XLogAccessDialogActivity {
         }
 
         try {
-            Class<?> logAccessDialogActivityClazz = XposedHelpers.findClass(LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME, lpparam.classLoader);
+            // - https://cs.android.com/android/_/android/platform/frameworks/base/+/fc13cb1d680d57ea6401e2d45dfb1e46bf046fc7
+            if (lpparam.packageName.equals("android")) {
+                try {
+                    mLogAccessDialogActivityClass = XposedHelpers.findClass(SYSTEM_SERVER_LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME, lpparam.classLoader);
+                } catch (XposedHelpers.ClassNotFoundError e) {
+                    Logger.logError(LOG_TAG, e.getMessage());
+                }
+            } else {
+                // if com.android.systemui
+                try {
+                    mLogAccessDialogActivityClass = XposedHelpers.findClass(SYSTEM_UI_LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME, lpparam.classLoader);
+                } catch (XposedHelpers.ClassNotFoundError e) {
+                    Logger.logError(LOG_TAG, e.getMessage());
+                }
+            }
+
+            if (mLogAccessDialogActivityClass == null) {
+                return;
+            }
 
             // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/services/core/java/com/android/server/logcat/LogAccessDialogActivity.java;l=64
-            XposedHelpers.findAndHookMethod(LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME,
+            XposedHelpers.findAndHookMethod(mLogAccessDialogActivityClass.getName(),
                     lpparam.classLoader, "onCreate", Bundle.class, onCreateMethodHook());
 
             // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/services/core/java/com/android/server/logcat/LogAccessDialogActivity.java;l=194
-            XposedHelpers.findAndHookMethod(LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME,
+            XposedHelpers.findAndHookMethod(mLogAccessDialogActivityClass.getName(),
                     lpparam.classLoader, "onClick", View.class, onClickMethodHook());
 
             // This method is not overridden by LogAccessDialogActivity so we hook method of super class android.app.Activity
-            if (!XposedModule.deoptimizeMethod(logAccessDialogActivityClazz.getSuperclass().getDeclaredMethod("onStop")))
+            if (!XposedModule.deoptimizeMethod(mLogAccessDialogActivityClass.getSuperclass().getDeclaredMethod("onStop")))
                 return;
-            XposedHelpers.findAndHookMethod(logAccessDialogActivityClazz.getSuperclass().getName(),
+            XposedHelpers.findAndHookMethod(mLogAccessDialogActivityClass.getSuperclass().getName(),
                     lpparam.classLoader, "onStop", onStopMethodHook());
 
         } catch (Throwable t) {
@@ -73,12 +96,9 @@ public class XLogAccessDialogActivity {
                     Activity activity = (Activity) param.thisObject;
 
                     mHandler = (Handler) XposedHelpers.getObjectField(activity, "mHandler");
-                    MSG_DISMISS_DIALOG = XposedHelpers.getIntField(activity, "MSG_DISMISS_DIALOG");
 
                     // Reset has_clicked for usage in onStop()
                     XposedHelpers.setAdditionalInstanceField(activity, "has_clicked", false);
-
-                    Logger.logInfo(LOG_TAG, "MSG_DISMISS_DIALOG=" + MSG_DISMISS_DIALOG);
                 } catch (Throwable t) {
                     Logger.logStackTraceWithMessage(LOG_TAG, "Failed to override after:onCreate()", t);
                     mInvalidState = true;
@@ -123,7 +143,7 @@ public class XLogAccessDialogActivity {
                     String activityClazzName = activity.getClass().getName();
 
                     // Ensure we don't run code in any other inherited activity since we hooked method of android.app.Activity
-                    if (!LOG_ACCESS_DIALOG_ACTIVITY_CLASS_NAME.equals(activityClazzName))
+                    if (!mLogAccessDialogActivityClass.getName().equals(activityClazzName))
                         return;
 
                     Logger.logInfo(LOG_TAG, "after:onStop()");

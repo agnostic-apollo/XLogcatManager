@@ -27,6 +27,7 @@ public class XLogcatManagerService {
     private static final String LOGCAT_SERVER_PACKAGE_NAME = "com.android.server.logcat";
     private static final String LOGCAT_MANAGER_SERVICE_CLASS_NAME = LOGCAT_SERVER_PACKAGE_NAME + ".LogcatManagerService";
     private static final String LOGCAT_MANAGER_SERVICE_INTERNAL_CLASS_NAME = LOGCAT_MANAGER_SERVICE_CLASS_NAME + "$LogcatManagerServiceInternal";
+    private static final String LOG_ACCESS_DIALOG_CALLBACK_CLASS_NAME = LOGCAT_MANAGER_SERVICE_CLASS_NAME + "$LogAccessDialogCallback";
     private static final String LOG_ACCESS_CLIENT_CLASS_NAME = LOGCAT_MANAGER_SERVICE_CLASS_NAME + "$LogAccessClient";
     private static final String LOG_ACCESS_REQUEST_CLASS_NAME = LOGCAT_MANAGER_SERVICE_CLASS_NAME + "$LogAccessRequest";
     private static final String LOG_ACCESS_REQUEST_HANDLER_CLASS_NAME = LOGCAT_MANAGER_SERVICE_CLASS_NAME + "$LogAccessRequestHandler";
@@ -43,12 +44,17 @@ public class XLogcatManagerService {
 
     private static Method mGetUidProcessStateMethod;
 
-    private static int MSG_APPROVE_LOG_ACCESS; // LogcatManagerService.MSG_APPROVE_LOG_ACCESS
-    private static int MSG_DECLINE_LOG_ACCESS; // LogcatManagerService.MSG_DECLINE_LOG_ACCESS
-    private static int MSG_PENDING_TIMEOUT; // LogcatManagerService.MSG_PENDING_TIMEOUT
-    private static int MSG_LOG_ACCESS_STATUS_EXPIRED; // LogcatManagerService.MSG_LOG_ACCESS_STATUS_EXPIRED
-    private static int STATUS_APPROVED; // LogcatManagerService.STATUS_APPROVED
-    private static int STATUS_DECLINED; // LogcatManagerService.STATUS_DECLINED
+    private static final int MSG_LOG_ACCESS_REQUESTED = 0; // LogcatManagerService.MSG_LOG_ACCESS_REQUESTED
+    private static final int MSG_APPROVE_LOG_ACCESS = 1; // LogcatManagerService.MSG_APPROVE_LOG_ACCESS
+    private static final int MSG_DECLINE_LOG_ACCESS = 2; // LogcatManagerService.MSG_DECLINE_LOG_ACCESS
+    private static final int MSG_LOG_ACCESS_FINISHED = 3; // LogcatManagerService.MSG_LOG_ACCESS_FINISHED
+    private static final int MSG_PENDING_TIMEOUT = 4; // LogcatManagerService.MSG_PENDING_TIMEOUT
+    private static final int MSG_LOG_ACCESS_STATUS_EXPIRED = 5; // LogcatManagerService.MSG_LOG_ACCESS_STATUS_EXPIRED
+
+    private static final int STATUS_NEW_REQUEST = 0; // LogcatManagerService.STATUS_NEW_REQUEST
+    private static final int STATUS_PENDING = 1; // LogcatManagerService.STATUS_PENDING
+    private static final int STATUS_APPROVED = 2; // LogcatManagerService.STATUS_APPROVED
+    private static final int STATUS_DECLINED = 3; // LogcatManagerService.STATUS_DECLINED
 
     // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/core/java/android/app/ProcessStateEnum.aidl;l=34
     private static int PROCESS_STATE_TOP; // ActivityManager.PROCESS_STATE_TOP
@@ -68,6 +74,14 @@ public class XLogcatManagerService {
             Class<?> logcatAccessRequestClazz = XposedHelpers.findClass(LOG_ACCESS_REQUEST_CLASS_NAME, lpparam.classLoader);
             Class<?> logAccessRequestHandlerClazz = XposedHelpers.findClass(LOG_ACCESS_REQUEST_HANDLER_CLASS_NAME, lpparam.classLoader);
 
+            // - https://cs.android.com/android/_/android/platform/frameworks/base/+/db1ed6fa670ad261b81d1886cb947f235e3ce802
+            Class<?> logAccessDialogCallbackClazz;
+            try {
+                logAccessDialogCallbackClazz = XposedHelpers.findClass(LOGCAT_MANAGER_SERVICE_INTERNAL_CLASS_NAME, lpparam.classLoader);
+            } catch (XposedHelpers.ClassNotFoundError e) {
+                logAccessDialogCallbackClazz = XposedHelpers.findClass(LOG_ACCESS_DIALOG_CALLBACK_CLASS_NAME, lpparam.classLoader);
+            }
+
             // Some methods are inlined and need to be deoptimized, otherwise their hooks will not
             // be called. Check XposedModule.deoptimizeMethod() for details.
 
@@ -76,11 +90,11 @@ public class XLogcatManagerService {
                     lpparam.classLoader, "onStart", onStartMethodHook());
 
             // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/services/core/java/com/android/server/logcat/LogcatManagerService.java;l=207
-            XposedHelpers.findAndHookMethod(LOGCAT_MANAGER_SERVICE_INTERNAL_CLASS_NAME,
+            XposedHelpers.findAndHookMethod(logAccessDialogCallbackClazz.getName(),
                     lpparam.classLoader, "approveAccessForClient", int.class, String.class, approveAccessForClientMethodHook());
 
             // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/services/core/java/com/android/server/logcat/LogcatManagerService.java;l=216
-            XposedHelpers.findAndHookMethod(LOGCAT_MANAGER_SERVICE_INTERNAL_CLASS_NAME,
+            XposedHelpers.findAndHookMethod(logAccessDialogCallbackClazz.getName(),
                     lpparam.classLoader, "declineAccessForClient", int.class, String.class, declineAccessForClientMethodHook());
 
             // https://cs.android.com/android/platform/superproject/+/android-13.0.0_r3:frameworks/base/services/core/java/com/android/server/logcat/LogcatManagerService.java;l=476
@@ -146,23 +160,10 @@ public class XLogcatManagerService {
 
                     mGetUidProcessStateMethod = mActivityManagerInternal.getClass().getDeclaredMethod("getUidProcessState", int.class);
 
-                    MSG_APPROVE_LOG_ACCESS = XposedHelpers.getIntField(mLogcatManagerService, "MSG_APPROVE_LOG_ACCESS");
-                    MSG_DECLINE_LOG_ACCESS = XposedHelpers.getIntField(mLogcatManagerService, "MSG_DECLINE_LOG_ACCESS");
-                    MSG_PENDING_TIMEOUT = XposedHelpers.getIntField(mLogcatManagerService, "MSG_PENDING_TIMEOUT");
-                    MSG_LOG_ACCESS_STATUS_EXPIRED = XposedHelpers.getIntField(mLogcatManagerService, "MSG_LOG_ACCESS_STATUS_EXPIRED");
-                    STATUS_APPROVED = XposedHelpers.getIntField(mLogcatManagerService, "STATUS_APPROVED");
-                    STATUS_DECLINED = XposedHelpers.getIntField(mLogcatManagerService, "STATUS_DECLINED");
-
                     PROCESS_STATE_TOP = XposedHelpers.getStaticIntField(ActivityManager.class, "PROCESS_STATE_TOP");
                     PROCESS_STATE_FOREGROUND_SERVICE = XposedHelpers.getStaticIntField(ActivityManager.class, "PROCESS_STATE_FOREGROUND_SERVICE");
 
-                    Logger.logInfo(LOG_TAG, "MSG_APPROVE_LOG_ACCESS=" + MSG_APPROVE_LOG_ACCESS +
-                            ", MSG_DECLINE_LOG_ACCESS=" + MSG_DECLINE_LOG_ACCESS +
-                            ", MSG_PENDING_TIMEOUT=" + MSG_PENDING_TIMEOUT +
-                            ", MSG_LOG_ACCESS_STATUS_EXPIRED=" + MSG_LOG_ACCESS_STATUS_EXPIRED +
-                            ", STATUS_APPROVED=" + STATUS_APPROVED +
-                            ", STATUS_DECLINED=" + STATUS_DECLINED +
-                            ", PROCESS_STATE_TOP=" + PROCESS_STATE_TOP +
+                    Logger.logInfo(LOG_TAG, "PROCESS_STATE_TOP=" + PROCESS_STATE_TOP +
                             ", PROCESS_STATE_FOREGROUND_SERVICE=" + PROCESS_STATE_FOREGROUND_SERVICE);
                 } catch (Throwable t) {
                     Logger.logStackTraceWithMessage(LOG_TAG, "Failed to hook after:onStart()", t);
