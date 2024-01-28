@@ -35,7 +35,7 @@ The module is based on currently latest Android 13 avd and pixel builds for `Jul
 
 ### Installation
 
-Latest version is `v0.1.0`.
+Latest version is `v0.2.0`.
 
 The APK files of different sources are signed with different signature keys. Do not attempt to mix them together, i.e do not try to install the app from `Github Releases` and then from a different source like `Github Actions`. Android Package Manager will also normally not allow installation of APKs with different signatures and you will get errors on installation like `App not installed`, `Failed to install due to an unknown error`, `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, `INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`, `signatures do not match previously installed version`, etc. This restriction can be bypassed with root or with custom roms.
 
