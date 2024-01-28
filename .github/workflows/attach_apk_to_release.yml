@@ -32,7 +32,7 @@ jobs:
           exit_on_error() {
               echo "$1"
               echo "Deleting '$RELEASE_VERSION_NAME' release and '$GITHUB_REF' tag"
-              hub release delete "$RELEASE_VERSION_NAME"
+              gh release delete --cleanup-tag --yes "$RELEASE_VERSION_NAME"
               git push --delete origin "$GITHUB_REF"
               exit 1
           }
@@ -65,10 +65,9 @@ jobs:
           fi
 
           echo "Attaching APK to github release"
-          if ! hub release edit \
-          -m "" \
-          -a "$APK_DIR_PATH/${APK_BASENAME_PREFIX}.apk" \
-          -a "$APK_DIR_PATH/sha256sums" \
-          "$RELEASE_VERSION_NAME"; then
+          if ! gh release upload "$RELEASE_VERSION_NAME" \
+          "$APK_DIR_PATH/${APK_BASENAME_PREFIX}.apk" \
+          "$APK_DIR_PATH/sha256sums" \
+          ; then
             exit_on_error "Attach APK to release failed for '$RELEASE_VERSION_NAME' release."
           fi
